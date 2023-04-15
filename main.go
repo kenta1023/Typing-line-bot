@@ -3,8 +3,10 @@ package main
 import (
 	"fmt"
 	"log"
+	"math/rand"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/line/line-bot-sdk-go/v7/linebot"
 )
@@ -12,8 +14,7 @@ import (
 func main() {
 	http.HandleFunc("/", lineHandler)
 	fmt.Println("start http://localhost:8000")
-	log.Fatal(http.ListenAndServe(":8000",nil))
-
+	log.Fatal(http.ListenAndServe(":8000", nil))
 }
 
 func lineHandler(w http.ResponseWriter, r *http.Request) {
@@ -36,13 +37,30 @@ func lineHandler(w http.ResponseWriter, r *http.Request) {
 			switch message := event.Message.(type) {
 
 			case *linebot.TextMessage:
-				replyMessage := message.Text
-				_, err = bot.ReplyMessage(event.ReplyToken, linebot.NewTextMessage(replyMessage)).Do()
-				if err != nil {
-					log.Print(err)
+				if message.Text == "フリック入力" {
+					sendQuestion(event, bot)
 				}
 			}
 
 		}
 	}
+}
+
+// 問題を送信
+func sendQuestion(event *linebot.Event, bot *linebot.Client) {
+	question := generateQuestion()
+	_, err := bot.ReplyMessage(event.ReplyToken, linebot.NewTextMessage(question)).Do()
+	if err != nil {
+		log.Print(err)
+	}
+}
+
+// ランダムで問題を選択
+func generateQuestion() string {
+	questionList := []string{"テスト", "今日の天気は晴れのち曇り", "今日も良い一日になりそうだ", "毎日のラジオ体操が日課です"}
+
+	rand.New(rand.NewSource(time.Now().UnixNano()))
+	randomNum := rand.Intn(len(questionList))
+
+	return questionList[randomNum]
 }
