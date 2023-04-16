@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/line/line-bot-sdk-go/v7/linebot"
@@ -17,6 +18,8 @@ type data struct {
 	correctNumber int
 	sendTime      int64
 }
+
+var sentData map[string]*data
 
 func main() {
 	http.HandleFunc("/", lineHandler)
@@ -46,6 +49,8 @@ func lineHandler(w http.ResponseWriter, r *http.Request) {
 			case *linebot.TextMessage:
 				if message.Text == "フリック入力" {
 					sendQuestion(event, bot)
+				} else {
+					checkAnswer(event, bot, message)
 				}
 			}
 
@@ -65,7 +70,7 @@ func sendQuestion(event *linebot.Event, bot *linebot.Client) {
 
 // 送信済み問題を保存
 func saveSentData(event *linebot.Event, question string) {
-	sentData := map[string]*data{}
+	sentData = make(map[string]*data)
 	var id string
 
 	//id取得したい
@@ -88,4 +93,29 @@ func generateQuestion() string {
 	randomNum := rand.Intn(len(questionList))
 
 	return questionList[randomNum]
+}
+
+// 　回答をチェック
+func checkAnswer(event *linebot.Event, bot *linebot.Client, message *linebot.TextMessage) {
+	var id string
+	var replyMessage string
+
+	if event.Source.Type == "group" {
+		id = event.Source.GroupID
+	} else {
+		id = event.Source.UserID
+	}
+
+	if data, ok := sentData[id]; ok {
+		if data.sentQuestion == message.Text {
+			// 正解の返答が来たあとの処理
+			time := time.Now().Unix() - data.sendTime
+			replyMessage = "タイム:" + strconv.Itoa(int(time)) + "秒\n"
+			data.correctNumber++
+			_, err := bot.ReplyMessage(event.ReplyToken, linebot.NewTextMessage(replyMessage)).Do()
+			if err != nil {
+				log.Print(err)
+			}
+		}
+	}
 }
