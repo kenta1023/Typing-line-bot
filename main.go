@@ -11,6 +11,13 @@ import (
 	"github.com/line/line-bot-sdk-go/v7/linebot"
 )
 
+type data struct {
+	id            string
+	sentQuestion  string
+	correctNumber int
+	sendTime      int64
+}
+
 func main() {
 	http.HandleFunc("/", lineHandler)
 	fmt.Println("start http://localhost:8000")
@@ -46,13 +53,31 @@ func lineHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// 問題を送信
+// 問題を送信 送信済みの問題を保存(saveSentData)
 func sendQuestion(event *linebot.Event, bot *linebot.Client) {
 	question := generateQuestion()
 	_, err := bot.ReplyMessage(event.ReplyToken, linebot.NewTextMessage(question)).Do()
 	if err != nil {
 		log.Print(err)
 	}
+	saveSentData(event, question)
+}
+
+// 送信済み問題を保存
+func saveSentData(event *linebot.Event, question string) {
+	sentData := map[string]*data{}
+	var id string
+
+	//id取得したい
+	if event.Source.Type == "group" {
+		id = event.Source.GroupID
+	} else {
+		id = event.Source.UserID
+	}
+	//okがfalseでidがすでに存在　削除する
+	delete(sentData, id)
+	sentData[id] = &data{id: id, sentQuestion: question, correctNumber: 0, sendTime: time.Now().Unix()}
+	fmt.Println(sentData[id])
 }
 
 // ランダムで問題を選択
