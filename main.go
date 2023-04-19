@@ -61,7 +61,7 @@ func lineHandler(w http.ResponseWriter, r *http.Request) {
 // 問題を送信 送信済みの問題を保存(saveSentData)
 func sendQuestion(event *linebot.Event, bot *linebot.Client) {
 	question := generateQuestion()
-	_, err := bot.ReplyMessage(event.ReplyToken, linebot.NewTextMessage(question)).Do()
+	_, err := bot.ReplyMessage(event.ReplyToken, linebot.NewTextMessage("お題\n「"+question+"」")).Do()
 	if err != nil {
 		log.Print(err)
 	}
