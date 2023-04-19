@@ -16,7 +16,7 @@ type data struct {
 	id            string
 	sentQuestion  string
 	correctNumber int
-	sendTime      int64
+	sendTime      time.Time
 }
 
 var sentData map[string]*data
@@ -81,7 +81,7 @@ func saveSentData(event *linebot.Event, question string) {
 	}
 	//idがすでに存在　削除する
 	delete(sentData, id)
-	sentData[id] = &data{id: id, sentQuestion: question, correctNumber: 0, sendTime: time.Now().Unix()}
+	sentData[id] = &data{id: id, sentQuestion: question, correctNumber: 0, sendTime: time.Now()}
 	fmt.Print("保管・送信済:")
 	fmt.Println(sentData[id])
 }
@@ -113,10 +113,11 @@ func checkAnswer(event *linebot.Event, bot *linebot.Client, message *linebot.Tex
 	if data, ok := sentData[id]; ok {
 		if data.sentQuestion == message.Text {
 			// 正解の返答が来たあとの処理
-			time := time.Now().Unix() - data.sendTime
+			time := time.Since(data.sendTime)
+			FormattedTime := fmt.Sprintf("%.3f秒", time.Seconds())
 			//　userの場合の返信
 			if typeUserOrGroup == "user" {
-				replyMessage = "タイム:" + strconv.Itoa(int(time)) + "秒"
+				replyMessage = "タイム:" + FormattedTime
 			} else { //groupの場合
 				//ユーザ名（ディスプレイ名）取得
 				res, err := bot.GetProfile(userID).Do()
@@ -125,7 +126,7 @@ func checkAnswer(event *linebot.Event, bot *linebot.Client, message *linebot.Tex
 				}
 				data.correctNumber++
 				name := res.DisplayName
-				replyMessage = strconv.Itoa(data.correctNumber) + "位" + name + "\nタイム:" + strconv.Itoa(int(time)) + "秒"
+				replyMessage = strconv.Itoa(data.correctNumber) + "位" + name + "\nタイム:" + FormattedTime
 			}
 			//データ送信
 			_, err := bot.ReplyMessage(event.ReplyToken, linebot.NewTextMessage(replyMessage)).Do()
