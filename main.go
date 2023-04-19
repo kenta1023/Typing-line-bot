@@ -79,9 +79,10 @@ func saveSentData(event *linebot.Event, question string) {
 	} else {
 		id = event.Source.UserID
 	}
-	//okがfalseでidがすでに存在　削除する
+	//idがすでに存在　削除する
 	delete(sentData, id)
 	sentData[id] = &data{id: id, sentQuestion: question, correctNumber: 0, sendTime: time.Now().Unix()}
+	fmt.Print("保管・送信済:")
 	fmt.Println(sentData[id])
 }
 
@@ -98,10 +99,13 @@ func generateQuestion() string {
 // 　回答をチェック
 func checkAnswer(event *linebot.Event, bot *linebot.Client, message *linebot.TextMessage) {
 	var id string
+	var userID string
 	var replyMessage string
+	typeUserOrGroup := event.Source.Type
 
-	if event.Source.Type == "group" {
+	if typeUserOrGroup == "group" {
 		id = event.Source.GroupID
+		userID = event.Source.UserID
 	} else {
 		id = event.Source.UserID
 	}
@@ -110,12 +114,31 @@ func checkAnswer(event *linebot.Event, bot *linebot.Client, message *linebot.Tex
 		if data.sentQuestion == message.Text {
 			// 正解の返答が来たあとの処理
 			time := time.Now().Unix() - data.sendTime
-			replyMessage = "タイム:" + strconv.Itoa(int(time)) + "秒\n"
-			data.correctNumber++
+			//　userの場合の返信
+			if typeUserOrGroup == "user" {
+				replyMessage = "タイム:" + strconv.Itoa(int(time)) + "秒"
+			} else { //groupの場合
+				//ユーザ名（ディスプレイ名）取得
+				res, err := bot.GetProfile(userID).Do()
+				if err != nil {
+					log.Print(err)
+				}
+				data.correctNumber++
+				name := res.DisplayName
+				replyMessage = strconv.Itoa(data.correctNumber) + "位" + name + "\nタイム:" + strconv.Itoa(int(time)) + "秒"
+			}
+			//データ送信
 			_, err := bot.ReplyMessage(event.ReplyToken, linebot.NewTextMessage(replyMessage)).Do()
 			if err != nil {
 				log.Print(err)
 			}
+			fmt.Print("正解:")
+			fmt.Println(sentData[id])
+
+		} else {
+			fmt.Println("関係のない会話 or 不正解:" + id)
 		}
+	} else {
+		fmt.Println("関係のない会話 or 不正解:" + id)
 	}
 }
